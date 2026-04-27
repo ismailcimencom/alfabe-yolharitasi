@@ -45,8 +45,11 @@ function VerifyContent() {
     });
 
     if (insertError) {
-      console.error("INSERT ERROR:", insertError);
-      alert(`Ideas'a yazamadı: ${insertError.message}`);
+      console.error("INSERT ERROR FULL:", JSON.stringify(insertError, null, 2));
+      console.error("Hata kodu:", insertError.code);
+      console.error("Hata mesajı:", insertError.message);
+      console.error("Detay:", insertError.details);
+      alert(`Ideas'a yazamadı: ${insertError.message} (Kod: ${insertError.code})`);
       return;
     }
 
