@@ -35,7 +35,7 @@ function VerifyContent() {
     }
 
     // 🔧 supabaseAdmin ile INSERT (RLS'yi bypass eder)
-    const { error: insertError } = await supabaseAdmin.from("ideas").insert({
+    const { error: insertError } = await supabase.from("ideas").insert({
       title: data.title,
       description: data.description,
       email: data.email,
