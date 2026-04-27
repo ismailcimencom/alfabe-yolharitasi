@@ -35,7 +35,7 @@ function VerifyContent() {
         setTimeout(() => router.push("/"), 3000);
       }
     } catch (err) {
-      setStatus("❌ Bağlantı hatası, lütfen daha sonra tekrar deneyin");
+      setStatus("❌ Bağlantı hatası");
       setTimeout(() => router.push("/"), 3000);
     }
   }
