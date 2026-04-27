@@ -10,6 +10,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+     // 🟢 BURAYA EKLE - try bloğundan ÖNCE de olabilir
+    console.log('=== EMAIL API CALLED ===');
+    console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+
   try {
     // Frontend'den gelen verileri al
     const { to, token, title, description } = await request.json();
