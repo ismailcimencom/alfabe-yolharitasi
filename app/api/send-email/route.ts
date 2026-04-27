@@ -1,49 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-export const runtime = 'edge';
+import nodemailer from 'nodemailer';
 
 export async function POST(request: NextRequest) {
   const { to, token, title, description } = await request.json();
   
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://alfabe-yolharitasi.vercel.app';
+  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const verifyUrl = `${origin}/verify?token=${token}`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Fikir Doğrulama</title>
-    </head>
-    <body style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #6366f1;">Alfabe Yol Haritası</h2>
-      <h3>Fikir Doğrulama</h3>
+  // Mail gönderimi için test hesabı oluştur (ethereal.email)
+  const testAccount = await nodemailer.createTestAccount();
+
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+
+  const info = await transporter.sendMail({
+    from: '"Alfabe Yol Haritası" <noreply@alfabe-yolharitasi.vercel.app>',
+    to: to,
+    subject: 'Fikir Doğrulama',
+    html: `
+      <h2>Fikir Doğrulama</h2>
       <p><strong>Başlık:</strong> ${title}</p>
       <p><strong>Açıklama:</strong> ${description}</p>
-      <p>Fikrinizi onaylamak için aşağıdaki butona tıklayın:</p>
-      <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px;">Fikri Onayla</a>
-      <p style="margin-top: 20px; font-size: 12px; color: #666;">Bu e-posta Alfabe Yol Haritası tarafından otomatik gönderilmiştir.</p>
-    </body>
-    </html>
-  `;
+      <a href="${verifyUrl}">Fikri Onayla</a>
+    `,
+  });
 
-  try {
-    const response = await fetch('https://edge.email/api/mail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: 'noreply@alfabe-yolharitasi.vercel.app' },
-        subject: 'Fikir Doğrulama',
-        content: [{ type: 'text/html', value: html }],
-      }),
-    });
+  // Test e-postasını görüntülemek için (development)
+  console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 
-    if (!response.ok) throw new Error('E-posta gönderilemedi');
-
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Email error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  return NextResponse.json({ success: true, previewUrl: nodemailer.getTestMessageUrl(info) });
 }
