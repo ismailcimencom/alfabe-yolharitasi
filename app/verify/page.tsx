@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { supabaseAdmin } from "../../lib/supabaseAdmin";
+import { createClient } from '@supabase/supabase-js';
 
 export default function Verify() {
   return (
@@ -23,19 +23,32 @@ function VerifyContent() {
   }, [token]);
 
   async function verify() {
-    const { data } = await supabase
+    // 1. Önce pending_ideas'dan veriyi al (normal client yeterli)
+    const { data, error: fetchError } = await supabase
       .from("pending_ideas")
       .select("*")
       .eq("token", token)
       .single();
 
-    if (!data) {
-      alert("Geçersiz link");
+    if (fetchError || !data) {
+      console.error("Fetch error:", fetchError);
+      alert("Geçersiz link veya token bulunamadı");
       return;
     }
 
-    // 🔧 supabaseAdmin ile INSERT (RLS'yi bypass eder)
-    const { error: insertError } = await supabase.from("ideas").insert({
+    // 2. Service role ile ideas'a ekle (401 hatasını bypass etmek için)
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const { error: insertError } = await supabaseAdmin.from("ideas").insert({
       title: data.title,
       description: data.description,
       email: data.email,
@@ -45,14 +58,12 @@ function VerifyContent() {
     });
 
     if (insertError) {
-      console.error("INSERT ERROR FULL:", JSON.stringify(insertError, null, 2));
-      console.error("Hata kodu:", insertError.code);
-      console.error("Hata mesajı:", insertError.message);
-      console.error("Detay:", insertError.details);
+      console.error("INSERT ERROR:", insertError);
       alert(`Ideas'a yazamadı: ${insertError.message} (Kod: ${insertError.code})`);
       return;
     }
 
+    // 3. Başarılıysa pending_ideas'dan sil
     await supabase
       .from("pending_ideas")
       .delete()
