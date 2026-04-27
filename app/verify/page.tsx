@@ -4,8 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { supabaseAdmin } from "../../lib/supabaseAdmin";
 
-// Ana bileşen - Suspense ile sar
 export default function Verify() {
   return (
     <Suspense fallback={<div className="p-10 text-center">Doğrulanıyor...</div>}>
@@ -14,7 +14,6 @@ export default function Verify() {
   );
 }
 
-// Asıl içerik bileşeni
 function VerifyContent() {
   const params = useSearchParams();
   const token = params.get("token");
@@ -35,8 +34,8 @@ function VerifyContent() {
       return;
     }
 
-    // 🔧 DÜZELTİLEN KISIM: email_verified ve is_published ekledik
-    const { error: insertError } = await supabase.from("ideas").insert({
+    // 🔧 supabaseAdmin ile INSERT (RLS'yi bypass eder)
+    const { error: insertError } = await supabaseAdmin.from("ideas").insert({
       title: data.title,
       description: data.description,
       email: data.email,
@@ -46,7 +45,7 @@ function VerifyContent() {
     });
 
     if (insertError) {
-      console.error("INSERT ERROR FULL:", insertError);
+      console.error("INSERT ERROR:", insertError);
       alert(`Ideas'a yazamadı: ${insertError.message}`);
       return;
     }
