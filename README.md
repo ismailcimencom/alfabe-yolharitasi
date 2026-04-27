@@ -1,65 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alfabe Yol Haritası - Proje Başlangıç Planı
 
-## Getting Started
+## Projenin Amacı
+Kullanıcıların fikir önerebildiği, oylayabildiği, yorum yapabildiği bir platform. Admin ve yazılımcılar fikirleri yönetir.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-# Alfabe Yol Haritası
-
-Alfabe olarak geliştirme yol haritamız. Planlanan, devam eden ve yayınlanan özellikleri takip edin.
-
-## Özellikler
-
-- 📋 Fikir öner ve oyla
-- 🗳️ Upvote / Downvote sistemi
-- 👥 Admin ve yazılımcı rolleri
-- 📊 Dashboard ile istatistikler
-- 📧 E-posta doğrulama (Resend)
-- 🔍 Filtreleme ve arama
-- 💬 Yorum sistemi
-
-## Teknolojiler
-
-- Next.js 14
+## Teknoloji
+- Next.js 14 (App Router)
 - Supabase (Auth, Database, Storage)
 - Tailwind CSS
 - Resend (E-posta)
 
-## Canlı
+## İstenen Basit Akış
 
-[alfabe.co](https://alfabe.co)
+### Kullanıcı tarafı:
+1. Fikir önerir → e-posta doğrulaması gider
+2. E-postayı onaylar → Fikir **doğrudan `ideas` tablosuna** `is_published = false` olarak kaydedilir
+3. Fikir admin panelinde **"Planlanan"** sekmesinde görünür
 
-## Lisans
+### Admin / Yazılımcı tarafı:
+1. Admin "Planlanan" sekmesinde fikri görür
+2. **"Onayla"** butonuna basınca `is_published = true` olur → **Site ana sayfasında görünür**
+3. **"Başla"** butonu ile statü `devam_eden` olur
+4. **"Yayınla"** butonu ile statü `yayinlanan` olur
+5. **Yazılımcı atama** (dropdown ile) sadece admin tarafından yapılır
 
-MIT
+## İstenmeyen Karmaşıklıklar (KAÇIN)
+- Bildirim sistemi (ilk aşamada yok)
+- Bekleyen fikir listesi (fazla katman)
+- RLS ile fazla uğraşmak
+- Service role karmaşası
+
+## İlk Oturumda Yapılacaklar (Özet)
+1. Tabloları oluştur (`ideas`, `pending_ideas`, `votes`, `comments`)
+2. RLS'yi basit tut (`FOR INSERT WITH CHECK (true)`)
+3. E-posta doğrulama (Resend veya basit token)
+4. Admin paneli ile durum değiştirme
+5. Upvote/downvote sistemi
+6. Detay sayfası (yorum, görüntülenme)
+
+## Dosya Yapısı
+- `app/page.tsx` – Ana sayfa
+- `app/admin/page.tsx` – Admin paneli
+- `app/idea/[id]/page.tsx` – Detay sayfası
+- `app/verify/page.tsx` – E-posta onay sayfası
+- `lib/supabase.ts` – Supabase client
