@@ -386,7 +386,7 @@ function IdeaCard({ idea, onVote, hasVoted }: { idea: Idea; onVote: (id: string,
   );
 }
 
-// Idea Modal
+// Idea Modal - E-posta gönderimli versiyon
 function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -399,20 +399,40 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
     
     const token = Math.random().toString(36).substring(7);
     
-    const { error } = await supabase.from("pending_ideas").insert({
+    // 1. Pending ideas'a kaydet
+    const { error: insertError } = await supabase.from("pending_ideas").insert({
       title,
       description,
       email,
       token
     });
 
-    if (error) {
-      alert("Hata oluştu: " + error.message);
-    } else {
-      alert(`Doğrulama linki: ${window.location.origin}/verify?token=${token}`);
+    if (insertError) {
+      alert("Hata oluştu: " + insertError.message);
+      setLoading(false);
+      return;
+    }
+
+    // 2. E-posta gönder (Edge Function veya Resend ile)
+    const response = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: email,
+        token: token,
+        title: title,
+        description: description
+      })
+    });
+
+    if (response.ok) {
+      alert("✅ Doğrulama e-postası gönderildi! Lütfen e-postanızı kontrol edin.");
       onSuccess();
       onClose();
+    } else {
+      alert("E-posta gönderilemedi, lütfen daha sonra tekrar deneyin.");
     }
+    
     setLoading(false);
   }
 
@@ -455,7 +475,6 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
           </div>
         </form>
       </div>
-      
     </div>
   );
 }
