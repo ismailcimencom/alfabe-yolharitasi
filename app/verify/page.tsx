@@ -35,6 +35,7 @@ function VerifyContent() {
       return;
     }
 
+    // 🔧 DÜZELTİLEN KISIM: email_verified ve is_published ekledik
     const { error: insertError } = await supabase.from("ideas").insert({
       title: data.title,
       description: data.description,
