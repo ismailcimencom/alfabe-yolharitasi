@@ -24,53 +24,46 @@ function VerifyContent() {
   }, [token]);
 
   async function verify() {
-    try {
-      // 1. Pending ideas'dan token ile veriyi al
-      const { data: pending, error: fetchError } = await supabase
-        .from("pending_ideas")
-        .select("*")
-        .eq("token", token)
-        .single();
+    // 1. Pending'den al
+    const { data: pending, error: fetchError } = await supabase
+      .from("pending_ideas")
+      .select("*")
+      .eq("token", token)
+      .single();
 
-      if (fetchError || !pending) {
-        setStatus("Geçersiz veya süresi dolmuş link");
-        setTimeout(() => router.push("/"), 2000);
-        return;
-      }
-
-      // 2. Ideas tablosuna ekle
-      const { error: insertError } = await supabase
-        .from("ideas")
-        .insert({
-          title: pending.title,
-          description: pending.description,
-          email: pending.email,
-          email_verified: true,
-          status: "planlanan",
-          is_published: false
-        });
-
-      if (insertError) {
-        console.error("Insert hatası:", insertError);
-        setStatus("Bir hata oluştu: " + insertError.message);
-        setTimeout(() => router.push("/"), 3000);
-        return;
-      }
-
-      // 3. Pending ideas'dan sil
-      await supabase
-        .from("pending_ideas")
-        .delete()
-        .eq("id", pending.id);
-
-      setStatus("✅ Fikir başarıyla eklendi! Yönlendiriliyorsunuz...");
-      setTimeout(() => router.push("/"), 1500);
-
-    } catch (err) {
-      console.error("Beklenmeyen hata:", err);
-      setStatus("Bir hata oluştu, lütfen daha sonra tekrar deneyin");
-      setTimeout(() => router.push("/"), 3000);
+    if (fetchError || !pending) {
+      setStatus("Geçersiz link");
+      setTimeout(() => router.push("/"), 2000);
+      return;
     }
+
+    // 2. Ideas'a ekle
+    const { error: insertError } = await supabase
+      .from("ideas")
+      .insert({
+        title: pending.title,
+        description: pending.description,
+        email: pending.email,
+        email_verified: true,
+        status: "planlanan",
+        is_published: false
+      });
+
+    if (insertError) {
+      console.error("Insert hatası:", insertError);
+      setStatus("Bir hata oluştu: " + insertError.message);
+      setTimeout(() => router.push("/"), 3000);
+      return;
+    }
+
+    // 3. Pending'den sil
+    await supabase
+      .from("pending_ideas")
+      .delete()
+      .eq("id", pending.id);
+
+    setStatus("✅ Fikir eklendi! Yönlendiriliyorsunuz...");
+    setTimeout(() => router.push("/"), 1500);
   }
 
   return (
