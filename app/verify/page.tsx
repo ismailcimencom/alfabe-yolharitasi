@@ -1,10 +1,21 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 
+// Ana bileşen - Suspense ile sar
 export default function Verify() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">Doğrulanıyor...</div>}>
+      <VerifyContent />
+    </Suspense>
+  );
+}
+
+// Asıl içerik bileşeni
+function VerifyContent() {
   const params = useSearchParams();
   const token = params.get("token");
 
@@ -24,41 +35,28 @@ export default function Verify() {
       return;
     }
 
-const { error: insertError } = await supabase.from("ideas").insert({
-  title: data.title,
-  description: data.description,
-  email: data.email,
-  email_verified: true,
-  status: "planlanan",
-  is_published: false  // 🟢 BURASI ÖNEMLİ - siteye otomatik düşmesin
-});
-
-if (insertError) {
-    // 🔴 DETAYLI HATA LOG'U - BUNU KOPYALA
-    console.error("=== INSERT ERROR DETAILS ===");
-    console.error("Hata kodu:", insertError.code);
-    console.error("Hata mesajı:", insertError.message);
-    console.error("Detay:", insertError.details);
-    console.error("Hata objesinin tamamı:", JSON.stringify(insertError, null, 2));
-    console.error("Gönderilmeye çalışılan veri:", {
+    const { error: insertError } = await supabase.from("ideas").insert({
       title: data.title,
       description: data.description,
       email: data.email,
       email_verified: true,
-      status: "planlanan"
+      status: "planlanan",
+      is_published: false
     });
-    // 🔴 BUNU ALERT İÇİNDE DE GÖSTER
-    alert(`Ideas'a yazamadı!\n\nHata: ${insertError.message}\nKod: ${insertError.code}`);
-    return;
+
+    if (insertError) {
+      console.error("INSERT ERROR FULL:", insertError);
+      alert(`Ideas'a yazamadı: ${insertError.message}`);
+      return;
+    }
+
+    await supabase
+      .from("pending_ideas")
+      .delete()
+      .eq("id", data.id);
+
+    alert("Fikir eklendi 🎉");
   }
 
-  await supabase
-    .from("pending_ideas")
-    .delete()
-    .eq("id", data.id);
-
-  alert("Fikir eklendi 🎉");
-}
-
-  return <div className="p-10">Doğrulanıyor...</div>;
+  return <div className="p-10 text-center">Doğrulanıyor...</div>;
 }
