@@ -49,7 +49,7 @@ export default function Home() {
     const { data } = await supabase
       .from("ideas")
       .select("*")
-      .eq("is_published", true)  // 🟢 SADECE ONAYLANANLAR
+      .eq("is_published", true)
       .order("net_votes", { ascending: false });
     
     if (data) {
@@ -132,7 +132,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Buton sağ üstte */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
@@ -149,13 +148,11 @@ export default function Home() {
               <Plus className="w-5 h-5" />
               Fikir Öner
             </button>
-              
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* İstatistikler */}
         <div className="flex gap-4 mb-6">
           <div className="bg-white rounded-lg px-6 py-3 shadow-sm">
             <span className="text-2xl font-bold text-purple-600">{planlanan.length}</span>
@@ -171,12 +168,9 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Popüler Fikirler Bölümü */}
         {popularIdeas.length > 0 && (
           <div className="bg-white rounded-lg p-6 shadow-sm mb-8 border border-gray-100">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              🔥 Popüler Fikirler
-            </h2>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">🔥 Popüler Fikirler</h2>
             <div className="space-y-3">
               {popularIdeas.map((idea, index) => (
                 <div key={idea.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -199,10 +193,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Arama ve Filtre */}
         <div className="flex gap-4 mb-8 flex-wrap">
           <div className="flex-1 relative min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-2/ text-gray-400 w-5 h-5" />
             <input
               type="text"
               placeholder="Fikir ara..."
@@ -212,170 +205,99 @@ export default function Home() {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-lg transition ${filter === "all" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}
-            >
-              Tümü
-            </button>
-            <button
-              onClick={() => setFilter("planlanan")}
-              className={`px-4 py-2 rounded-lg transition ${filter === "planlanan" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}
-            >
-              Planlanan
-            </button>
-            <button
-              onClick={() => setFilter("devam_eden")}
-              className={`px-4 py-2 rounded-lg transition ${filter === "devam_eden" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}
-            >
-              Devam Eden
-            </button>
-            <button
-              onClick={() => setFilter("yayinlanan")}
-              className={`px-4 py-2 rounded-lg transition ${filter === "yayinlanan" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}
-            >
-              Yayınlanan
-            </button>
+            <button onClick={() => setFilter("all")} className={`px-4 py-2 rounded-lg transition ${filter === "all" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}>Tümü</button>
+            <button onClick={() => setFilter("planlanan")} className={`px-4 py-2 rounded-lg transition ${filter === "planlanan" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}>Planlanan</button>
+            <button onClick={() => setFilter("devam_eden")} className={`px-4 py-2 rounded-lg transition ${filter === "devam_eden" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}>Devam Eden</button>
+            <button onClick={() => setFilter("yayinlanan")} className={`px-4 py-2 rounded-lg transition ${filter === "yayinlanan" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}>Yayınlanan</button>
           </div>
         </div>
 
-        {/* 3 Sütunlu Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-4">📋 Planlanan ({planlanan.length})</h2>
             <div className="space-y-3">
-              {planlanan.map(idea => (
-                <IdeaCard key={idea.id} idea={idea} userVote={userVotes.get(idea.id)} onVote={handleVote} />
-              ))}
+              {planlanan.map(idea => <IdeaCard key={idea.id} idea={idea} hasVoted={userVotes.has(idea.id)} onVote={handleVote} />)}
             </div>
           </div>
-
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-4">🚧 Devam Eden ({devamEden.length})</h2>
             <div className="space-y-3">
-              {devamEden.map(idea => (
-                <IdeaCard key={idea.id} idea={idea} userVote={userVotes.get(idea.id)} onVote={handleVote} />
-              ))}
+              {devamEden.map(idea => <IdeaCard key={idea.id} idea={idea} hasVoted={userVotes.has(idea.id)} onVote={handleVote} />)}
             </div>
           </div>
-
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-4">✅ Yayınlanan ({yayinlanan.length})</h2>
             <div className="space-y-3">
-              {yayinlanan.map(idea => (
-                <IdeaCard key={idea.id} idea={idea} userVote={userVotes.get(idea.id)} onVote={handleVote} />
-              ))}
+              {yayinlanan.map(idea => <IdeaCard key={idea.id} idea={idea} hasVoted={userVotes.has(idea.id)} onVote={handleVote} />)}
             </div>
           </div>
         </div>
       </div>
 
       {showModal && <IdeaModal onClose={() => setShowModal(false)} onSuccess={fetchIdeas} />}
-    
-    {/* FOOTER - Koyu renkli, profesyonel */}
-<footer className="bg-gray-900 text-gray-300 mt-20">
-  <div className="max-w-7xl mx-auto px-4 py-12">
-    {/* Üst kısım: Logo + Linkler + İletişim */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-      
-      {/* Logo + Açıklama */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-3">Alfabe</h2>
-        <p className="text-sm text-gray-400 leading-relaxed">
-          Alfabe mail sistemi olarak geliştirme yol haritamız. Bizlere destek olun. Planlanan, devam eden ve yayınlanan özellikleri takip edin. Uygulamamızı test edin ve görüşlerinizi belirtin.
-        </p>
-        <br/>
-        <Link href="/rss.xml">
-          <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center gap-2">
-            <Rss className="w-5 h-5" />
-            RSS
-          </button>
-        </Link>
-      </div>
-      
-      {/* Linkler */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">Keşfet</h3>
-        <ul className="space-y-2 text-sm">
-          <li><Link href="/" className="hover:text-purple-400 transition">Ana Sayfa</Link></li>
-          <li><Link href="/admin" className="hover:text-purple-400 transition">Admin Paneli</Link></li>
-        </ul>
-      </div>
-      
-      {/* İletişim / Sosyal */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">İletişim</h3>
-        <ul className="space-y-2 text-sm">
-          <li className="flex items-center gap-2">
-            <span>📧</span>
-            <a href="mailto:info@alfabe.co" className="hover:text-purple-400 transition">info@alfabe.co</a>
-          </li>
-          <li className="flex items-center gap-2">
-            <span>🐦</span>
-            <a href="#" className="hover:text-purple-400 transition">Twitter</a>
-          </li>
-          <li className="flex items-center gap-2">
-            <span>💼</span>
-            <a href="#" className="hover:text-purple-400 transition">LinkedIn</a>
-          </li>
-          <li className="flex items-center gap-2">
-            <span>📘</span>
-            <a href="#" className="hover:text-purple-400 transition">Instagram</a>
-          </li>
-        </ul>
-      </div>      
-    </div>
 
-    
-    
-    {/* Copyright */}
-    <div className="border-t border-gray-800 mt-8 pt-6 text-center text-sm text-gray-500">
-      © {new Date().getFullYear()} alfabe.co - Tüm hakları saklıdır.
-    </div>
-  </div>
-</footer>
+      <footer className="bg-gray-900 text-gray-300 mt-20">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-3">Alfabe</h2>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Alfabe mail sistemi olarak geliştirme yol haritamız. Bizlere destek olun. Planlanan, devam eden ve yayınlanan özellikleri takip edin.
+              </p>
+              <br/>
+              <Link href="/rss.xml">
+                <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center gap-2">
+                  <Rss className="w-5 h-5" /> RSS
+                </button>
+              </Link>
+            </div>
+            <div>
+              <h3 className="text-white font-semibold mb-3">Keşfet</h3>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="/" className="hover:text-purple-400 transition">Ana Sayfa</Link></li>
+                <li><Link href="/admin" className="hover:text-purple-400 transition">Admin Paneli</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-white font-semibold mb-3">İletişim</h3>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center gap-2"><span>📧</span> <a href="mailto:info@alfabe.co" className="hover:text-purple-400 transition">info@alfabe.co</a></li>
+                <li className="flex items-center gap-2"><span>🐦</span> <a href="#" className="hover:text-purple-400 transition">Twitter</a></li>
+                <li className="flex items-center gap-2"><span>💼</span> <a href="#" className="hover:text-purple-400 transition">LinkedIn</a></li>
+                <li className="flex items-center gap-2"><span>📘</span> <a href="#" className="hover:text-purple-400 transition">Instagram</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-8 pt-6 text-center text-sm text-gray-500">
+            © {new Date().getFullYear()} alfabe.co - Tüm hakları saklıdır.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
 
-// Idea Card Komponenti (tıklanabilir hale geldi)
+// Idea Card Komponenti (tıklanabilir)
 function IdeaCard({ idea, onVote, hasVoted }: { idea: Idea; onVote: (id: string, type: number) => void; hasVoted: boolean }) {
   const statusColors = {
     planlanan: "bg-yellow-100 text-yellow-800",
     devam_eden: "bg-blue-100 text-blue-800",
     yayinlanan: "bg-green-100 text-green-800"
   };
-
   const statusText = {
     planlanan: "Planlandı",
     devam_eden: "Devam Ediyor",
     yayinlanan: "Yayınlandı"
   };
-
   return (
     <Link href={`/idea/${idea.id}`}>
       <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer">
         <h3 className="font-semibold text-gray-900 mb-1">{idea.title}</h3>
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">{idea.description}</p>
         <div className="flex items-center justify-between">
-          <span className={`text-xs px-2 py-1 rounded-full ${statusColors[idea.status]}`}>
-            {statusText[idea.status]}
-          </span>
-          
-          {/* Oy verme butonları - tıklama event'inin Link'e gitmesini engelle */}
+          <span className={`text-xs px-2 py-1 rounded-full ${statusColors[idea.status]}`}>{statusText[idea.status]}</span>
           <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onVote(idea.id, 1);
-              }}
-              disabled={hasVoted}
-              className={`flex items-center gap-1 px-2 py-1 rounded transition ${
-                hasVoted 
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                  : "bg-purple-50 text-purple-600 hover:bg-purple-100"
-              }`}
-            >
+            <button onClick={(e) => { e.stopPropagation(); onVote(idea.id, 1); }} disabled={hasVoted} className={`flex items-center gap-1 px-2 py-1 rounded transition ${hasVoted ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-purple-50 text-purple-600 hover:bg-purple-100"}`}>
               <span className="text-sm">👍</span>
               <span className="text-sm font-medium">{idea.net_votes}</span>
             </button>
@@ -386,7 +308,7 @@ function IdeaCard({ idea, onVote, hasVoted }: { idea: Idea; onVote: (id: string,
   );
 }
 
-// Idea Modal - E-posta gönderimli versiyon
+// Idea Modal - DÜZELTİLDİ (Token popup kalktı, e-posta entegre edildi)
 function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -399,7 +321,7 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
     
     const token = Math.random().toString(36).substring(7);
     
-    // 1. Pending ideas'a kaydet
+    // Pending ideas'a kaydet
     const { error: insertError } = await supabase.from("pending_ideas").insert({
       title,
       description,
@@ -413,24 +335,26 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
       return;
     }
 
-    // 2. E-posta gönder (Edge Function veya Resend ile)
-    const response = await fetch("/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: email,
-        token: token,
-        title: title,
-        description: description
-      })
-    });
+    // E-posta gönder
+    try {
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: email, token, title, description })
+      });
 
-    if (response.ok) {
-      alert("✅ Doğrulama e-postası gönderildi! Lütfen e-postanızı kontrol edin.");
-      onSuccess();
-      onClose();
-    } else {
-      alert("E-posta gönderilemedi, lütfen daha sonra tekrar deneyin.");
+      const result = await response.json();
+
+      if (response.ok) {
+        alert("✅ Doğrulama e-postası gönderildi! Lütfen e-postanızı kontrol edin.");
+        onSuccess();
+        onClose();
+      } else {
+        alert("E-posta gönderilemedi: " + (result.error || "Bilinmeyen hata"));
+      }
+    } catch (error) {
+      console.error("Fetch hatası:", error);
+      alert("Bağlantı hatası, lütfen daha sonra tekrar deneyin.");
     }
     
     setLoading(false);
@@ -441,37 +365,12 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
         <h2 className="text-xl font-bold mb-4">Yeni Fikir Öner</h2>
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Fikir başlığı"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full p-2 border rounded mb-3"
-            required
-          />
-          <textarea
-            placeholder="Açıklama"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 border rounded mb-3"
-            rows={3}
-            required
-          />
-          <input
-            type="email"
-            placeholder="E-posta"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded mb-4"
-            required
-          />
+          <input type="text" placeholder="Fikir başlığı" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 border rounded mb-3" required />
+          <textarea placeholder="Açıklama" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-2 border rounded mb-3" rows={3} required />
+          <input type="email" placeholder="E-posta" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border rounded mb-4" required />
           <div className="flex gap-2">
-            <button type="submit" disabled={loading} className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700">
-              {loading ? "Gönderiliyor..." : "Gönder"}
-            </button>
-            <button type="button" onClick={onClose} className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">
-              İptal
-            </button>
+            <button type="submit" disabled={loading} className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700">{loading ? "Gönderiliyor..." : "Gönder"}</button>
+            <button type="button" onClick={onClose} className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">İptal</button>
           </div>
         </form>
       </div>
