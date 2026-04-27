@@ -1,39 +1,59 @@
+// app/api/send-email/route.ts
+import { Resend } from 'resend';
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+
+// Resend istemcisini başlat (API Key'in .env.local'da veya Vercel'de olacak)
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Bu satır çok önemli: Node.js runtime'da çalışmasını sağlar
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const { to, token, title, description } = await request.json();
-  
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const verifyUrl = `${origin}/verify?token=${token}`;
+  try {
+    // Frontend'den gelen verileri al
+    const { to, token, title, description } = await request.json();
 
-  // Mail gönderimi için test hesabı oluştur (ethereal.email)
-  const testAccount = await nodemailer.createTestAccount();
+    // Doğrulama linkini oluştur
+    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://alfabe-yolharitasi.vercel.app';
+    const verifyUrl = `${origin}/verify?token=${token}`;
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: {
-      user: testAccount.user,
-      pass: testAccount.pass,
-    },
-  });
+    // E-posta içeriğini hazırla
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>Fikir Doğrulama</title></head>
+      <body style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #6366f1;">Alfabe Yol Haritası</h2>
+        <h3>Fikir Doğrulama</h3>
+        <p><strong>Başlık:</strong> ${title}</p>
+        <p><strong>Açıklama:</strong> ${description}</p>
+        <p>Fikrinizi onaylamak için aşağıdaki butona tıklayın:</p>
+        <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px;">Fikri Onayla</a>
+        <p style="margin-top: 20px; font-size: 12px; color: #666;">Bu e-posta otomatik olarak gönderilmiştir.</p>
+      </body>
+      </html>
+    `;
 
-  const info = await transporter.sendMail({
-    from: '"Alfabe Yol Haritası" <noreply@alfabe-yolharitasi.vercel.app>',
-    to: to,
-    subject: 'Fikir Doğrulama',
-    html: `
-      <h2>Fikir Doğrulama</h2>
-      <p><strong>Başlık:</strong> ${title}</p>
-      <p><strong>Açıklama:</strong> ${description}</p>
-      <a href="${verifyUrl}">Fikri Onayla</a>
-    `,
-  });
+    // Resend ile e-postayı gönder
+    const { data, error } = await resend.emails.send({
+      from: 'Alfabe Yol Haritası <noreply@updates.alfabe.co>',
+      to: [to],
+      subject: 'Fikir Doğrulama',
+      html: htmlContent,
+    });
 
-  // Test e-postasını görüntülemek için (development)
-  console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    // Hata kontrolü
+    if (error) {
+      console.error('Resend API Hatası:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-  return NextResponse.json({ success: true, previewUrl: nodemailer.getTestMessageUrl(info) });
+    // Başarılı yanıt
+    return NextResponse.json({ success: true, id: data?.id });
+    
+  } catch (error: any) {
+    console.error('Genel Sunucu Hatası:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
