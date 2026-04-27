@@ -3,7 +3,6 @@
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
 
 export default function Verify() {
   return (
@@ -24,46 +23,21 @@ function VerifyContent() {
   }, [token]);
 
   async function verify() {
-    // 1. Pending'den al
-    const { data: pending, error: fetchError } = await supabase
-      .from("pending_ideas")
-      .select("*")
-      .eq("token", token)
-      .single();
+    try {
+      const response = await fetch(`/api/verify?token=${token}`);
+      const data = await response.json();
 
-    if (fetchError || !pending) {
-      setStatus("Geçersiz link");
-      setTimeout(() => router.push("/"), 2000);
-      return;
-    }
-
-    // 2. Ideas'a ekle
-    const { error: insertError } = await supabase
-      .from("ideas")
-      .insert({
-        title: pending.title,
-        description: pending.description,
-        email: pending.email,
-        email_verified: true,
-        status: "planlanan",
-        is_published: false
-      });
-
-    if (insertError) {
-      console.error("Insert hatası:", insertError);
-      setStatus("Bir hata oluştu: " + insertError.message);
+      if (response.ok) {
+        setStatus("✅ Fikir başarıyla eklendi! Yönlendiriliyorsunuz...");
+        setTimeout(() => router.push("/"), 1500);
+      } else {
+        setStatus("❌ " + (data.error || "Bir hata oluştu"));
+        setTimeout(() => router.push("/"), 3000);
+      }
+    } catch (err) {
+      setStatus("❌ Bağlantı hatası, lütfen daha sonra tekrar deneyin");
       setTimeout(() => router.push("/"), 3000);
-      return;
     }
-
-    // 3. Pending'den sil
-    await supabase
-      .from("pending_ideas")
-      .delete()
-      .eq("id", pending.id);
-
-    setStatus("✅ Fikir eklendi! Yönlendiriliyorsunuz...");
-    setTimeout(() => router.push("/"), 1500);
   }
 
   return (
