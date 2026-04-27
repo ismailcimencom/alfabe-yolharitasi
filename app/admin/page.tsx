@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ChevronRight, CheckCircle, PlayCircle, ListChecks, UserPlus, LogOut, Users, UserCheck, User, BarChart3 } from "lucide-react";
+import { ChevronRight, CheckCircle, PlayCircle, ListChecks, UserPlus, LogOut, Users, UserCheck, User, BarChart3, Bell } from "lucide-react";
 import Link from "next/link";
 
 interface Idea {
@@ -39,12 +39,46 @@ export default function AdminPanel() {
   const [inviteName, setInviteName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Bildirim state'leri
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Bildirimleri çek
+  async function fetchNotifications() {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    
+    if (data) {
+      setNotifications(data);
+      setUnreadCount(data.filter((n: any) => !n.is_read).length);
+    }
+  }
+
+  // Bildirimi okundu işaretle
+  async function markAsRead(id: string) {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    fetchNotifications();
+  }
+
+  // Tümünü okundu işaretle
+  async function markAllAsRead() {
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", user?.id);
+    fetchNotifications();
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchIdeas();
         fetchTeamMembers();
+        fetchNotifications();
       }
       setLoading(false);
     });
@@ -54,6 +88,7 @@ export default function AdminPanel() {
       if (session?.user) {
         fetchIdeas();
         fetchTeamMembers();
+        fetchNotifications();
       }
     });
 
@@ -140,6 +175,34 @@ export default function AdminPanel() {
     }
   }
 
+  async function publishIdea(ideaId: string) {
+    const { error } = await supabase
+      .from("ideas")
+      .update({ is_published: true })
+      .eq("id", ideaId);
+    
+    if (error) {
+      alert("Yayınlama hatası: " + error.message);
+    } else {
+      alert("✅ Fikir yayınlandı!");
+      fetchIdeas();
+    }
+  }
+
+  async function restartIdea(ideaId: string) {
+    const { error } = await supabase
+      .from("ideas")
+      .update({ status: "planlanan", is_published: false })
+      .eq("id", ideaId);
+    
+    if (error) {
+      alert("Hata: " + error.message);
+    } else {
+      alert("🔄 Fikir başa alındı!");
+      fetchIdeas();
+    }
+  }
+
   if (loading) return <div className="text-center py-20">Yükleniyor...</div>;
 
   if (!user) {
@@ -156,35 +219,7 @@ export default function AdminPanel() {
       </div>
     );
   }
-  // Fikri siteye yayınla (sadece onay butonu)
-async function publishIdea(ideaId: string) {
-  const { error } = await supabase
-    .from("ideas")
-    .update({ is_published: true })
-    .eq("id", ideaId);
-  
-  if (error) {
-    alert("Yayınlama hatası: " + error.message);
-  } else {
-    alert("✅ Fikir yayınlandı!");
-    fetchIdeas();
-  }
-}
 
-// Baştan başla (planlanan'a taşı + yayından kaldır)
-async function restartIdea(ideaId: string) {
-  const { error } = await supabase
-    .from("ideas")
-    .update({ status: "planlanan", is_published: false })
-    .eq("id", ideaId);
-  
-  if (error) {
-    alert("Hata: " + error.message);
-  } else {
-    alert("🔄 Fikir başa alındı!");
-    fetchIdeas();
-  }
-}
   const planlanan = ideas.filter(i => i.status === "planlanan");
   const devamEden = ideas.filter(i => i.status === "devam_eden");
   const yayinlanan = ideas.filter(i => i.status === "yayinlanan");
@@ -193,32 +228,80 @@ async function restartIdea(ideaId: string) {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Paneli</h1>
-          <p className="text-gray-600">Hoş geldin, {user.email}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard">
-            <button className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Dashboard
+        <div className="flex justify-between items-center mb-8 relative">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Paneli</h1>
+            <p className="text-gray-600">Hoş geldin, {user.email}</p>
+          </div>
+          <div className="flex gap-2 items-center">
+            {/* 🔔 BİLDİRİM BUTONU */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 flex items-center gap-2"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              
+              {/* BİLDİRİM PANELİ */}
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto border">
+                  <div className="p-3 border-b font-semibold flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800">
+                    <span>Bildirimler</span>
+                    {notifications.length > 0 && (
+                      <button onClick={markAllAsRead} className="text-xs text-purple-600 hover:underline">
+                        Tümünü okundu işaretle
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">Henüz bildirim yok</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`p-3 border-b hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition ${
+                          !n.is_read ? "bg-purple-50 dark:bg-purple-900/20" : ""
+                        }`}
+                        onClick={() => markAsRead(n.id)}
+                      >
+                        <div className="font-medium text-sm">{n.title}</div>
+                        <div className="text-xs text-gray-500 mt-1">{n.message}</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {new Date(n.created_at).toLocaleString("tr-TR")}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Link href="/dashboard">
+              <button className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Dashboard
+              </button>
+            </Link>
+            <Link href="/profile">
+              <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Profilim
+              </button>
+            </Link>
+            <button onClick={() => setShowInvite(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
+              <UserPlus className="w-4 h-4" /> Yazılımcı Ekle
             </button>
-          </Link>
-          <Link href="/profile">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Profilim
+            <button onClick={handleLogout} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+              <LogOut className="w-4 h-4" /> Çıkış
             </button>
-          </Link>
-          <button onClick={() => setShowInvite(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
-            <UserPlus className="w-4 h-4" /> Yazılımcı Ekle
-          </button>
-          <button onClick={handleLogout} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
-            <LogOut className="w-4 h-4" /> Çıkış
-          </button>
+          </div>
         </div>
-      </div>
 
         {pendingMembers.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
@@ -342,7 +425,7 @@ async function restartIdea(ideaId: string) {
   );
 }
 
-// IdeasTable Komponenti - Onayla, Başla, Geri Al, Yayınla, Baştan Başla
+// IdeasTable Komponenti (hatasız)
 function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nextStatus, nextStatusText, nextStatusColor, developers = [], onUpdateIdea, isAdmin }: any) {
   const [editingIdea, setEditingIdea] = useState<any>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -363,7 +446,7 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
     return developers.find((d: any) => d.email === assignedEmail);
   };
 
-  const startEdit = (idea: any) => {
+ const startEdit = (idea: any) => {
     setEditingIdea(idea);
     setEditTitle(idea.title);
     setEditDescription(idea.description);
@@ -395,7 +478,7 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
         </thead>
         <tbody>
           {ideas.map((idea: Idea) => {
-            const assignedDev = getDeveloperInfo(idea.assigned_to_email);
+            const assignedDev = getDeveloperInfo(idea.assigned_to_email ?? null);
             const isEditing = editingIdea?.id === idea.id;
             return (
               <tr key={idea.id}>
@@ -441,61 +524,24 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
                     )}
                   </div>
                 </td>
-                
-                {/* İŞLEM BUTONLARI */}
                 <td className="px-3 py-2">
                   <div className="flex gap-1">
-                    {/* PLANLANAN BÖLÜMÜ: Onayla + Başla */}
                     {nextStatus === "devam_eden" && (
                       <>
-                        <button 
-                          onClick={() => onPublish(idea.id)} 
-                          className="bg-green-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80 flex items-center gap-1"
-                        >
-                          ✓ Onayla
-                        </button>
-                        <button 
-                          onClick={() => onStatusChange(idea.id, nextStatus)} 
-                          className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80"
-                        >
-                          → Başla
-                        </button>
+                        <button onClick={() => onPublish(idea.id)} className="bg-green-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">✓ Onayla</button>
+                        <button onClick={() => onStatusChange(idea.id, nextStatus)} className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">→ Başla</button>
                       </>
                     )}
-                    
-                    {/* DEVAM EDEN BÖLÜMÜ: Geri Al + Yayınla */}
                     {nextStatus === "yayinlanan" && (
                       <>
-                        <button 
-                          onClick={() => onStatusChange(idea.id, "planlanan")} 
-                          className="bg-orange-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80"
-                        >
-                          ↺ Geri Al
-                        </button>
-                        <button 
-                          onClick={() => onStatusChange(idea.id, nextStatus)} 
-                          className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80"
-                        >
-                          → Yayınla
-                        </button>
+                        <button onClick={() => onStatusChange(idea.id, "planlanan")} className="bg-orange-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">↺ Geri Al</button>
+                        <button onClick={() => onStatusChange(idea.id, nextStatus)} className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">→ Yayınla</button>
                       </>
                     )}
-                    
-                    {/* YAYINLANAN BÖLÜMÜ: Geri Al + Baştan Başla */}
                     {!nextStatus && (
                       <>
-                        <button 
-                          onClick={() => onStatusChange(idea.id, "devam_eden")}
-                          className="bg-orange-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80"
-                        >
-                          ↺ Geri Al
-                        </button>
-                        <button 
-                          onClick={() => onRestart(idea.id)}
-                          className="bg-purple-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80 flex items-center gap-1"
-                        >
-                          🔄 Baştan Başla
-                        </button>
+                        <button onClick={() => onStatusChange(idea.id, "devam_eden")} className="bg-orange-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">↺ Geri Al</button>
+                        <button onClick={() => onRestart(idea.id)} className="bg-purple-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">🔄 Baştan Başla</button>
                       </>
                     )}
                   </div>

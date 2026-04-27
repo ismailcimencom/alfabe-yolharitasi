@@ -32,7 +32,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -47,16 +46,7 @@ export default function Dashboard() {
     }
     
     setUser(user);
-    
-    // Admin kontrolü
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-    
-    setIsAdmin(data?.role === "admin");
-    fetchStats();
+    await fetchStats();
   }
 
   async function fetchStats() {
@@ -188,26 +178,22 @@ export default function Dashboard() {
       </div>
     );
   }
-  
-    // Admin kontrolü yok, sadece giriş kontrolü var
-    if (!user) {
-    return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Erişim Engellendi</h1>
-            <p className="text-gray-600 mb-4">Bu sayfayı görmek için giriş yapmalısınız.</p>
-            <Link href="/admin" className="text-purple-600 hover:underline">← Giriş Yap</Link>
-        </div>
-        </div>
-    );
-    }
 
-    // Eski admin kontrolü (artık çalışmaz, yorum satırı)
-    /*
-    if (!user || !isAdmin) {
-    return ( ... );
-    }
-    */
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erişim Engellendi</h1>
+          <p className="text-gray-600 mb-4">Bu sayfayı görmek için giriş yapmalısınız.</p>
+          <Link href="/admin" className="text-purple-600 hover:underline">← Giriş Yap</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Grafik için maksimum yükseklik hesapla
+  const maxCount = Math.max(...(stats?.weeklyIdeas.map(i => i.count) || [1]), 1);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -226,7 +212,7 @@ export default function Dashboard() {
         </div>
         
         {/* İstatistik Kartları */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
             <div className="text-3xl font-bold">{stats?.totalIdeas}</div>
             <div className="text-sm opacity-90 mt-1">Toplam Fikir</div>
@@ -254,7 +240,7 @@ export default function Dashboard() {
               <ThumbsUp className="w-5 h-5 text-green-600" />
               <h2 className="font-semibold text-gray-800">En Çok Oylanan</h2>
             </div>
-            {stats?.mostVotedIdea && stats.mostVotedIdea.title ? (
+            {stats?.mostVotedIdea?.title ? (
               <Link href={`/idea/${stats.mostVotedIdea.id}`} className="block hover:text-purple-600">
                 <p className="font-medium">{stats.mostVotedIdea.title}</p>
                 <p className="text-sm text-gray-500 mt-1">👍 {stats.mostVotedIdea.net_votes} oy</p>
@@ -270,7 +256,7 @@ export default function Dashboard() {
               <Eye className="w-5 h-5 text-blue-600" />
               <h2 className="font-semibold text-gray-800">En Çok Görüntülenen</h2>
             </div>
-            {stats?.mostViewedIdea && stats.mostViewedIdea.title ? (
+            {stats?.mostViewedIdea?.title ? (
               <Link href={`/idea/${stats.mostViewedIdea.id}`} className="block hover:text-purple-600">
                 <p className="font-medium">{stats.mostViewedIdea.title}</p>
                 <p className="text-sm text-gray-500 mt-1">👁️ {stats.mostViewedIdea.view_count} görüntülenme</p>
@@ -286,7 +272,7 @@ export default function Dashboard() {
               <MessageCircle className="w-5 h-5 text-purple-600" />
               <h2 className="font-semibold text-gray-800">En Çok Yorum Alan</h2>
             </div>
-            {stats?.mostCommentedIdea && stats.mostCommentedIdea.title ? (
+            {stats?.mostCommentedIdea?.title ? (
               <Link href={`/idea/${stats.mostCommentedIdea.id}`} className="block hover:text-purple-600">
                 <p className="font-medium">{stats.mostCommentedIdea.title}</p>
                 <p className="text-sm text-gray-500 mt-1">💬 {stats.mostCommentedIdea.comment_count} yorum</p>
@@ -298,24 +284,29 @@ export default function Dashboard() {
         </div>
         
         {/* Haftalık Fikir Grafiği */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8 overflow-x-auto">
           <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5" />
             Haftalık Fikir Eklenme Sayısı (Son 6 Hafta)
           </h2>
-          <div className="flex items-end gap-2 h-40">
-            {stats?.weeklyIdeas.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="bg-purple-500 rounded-t w-full max-w-[40px] mx-auto transition-all"
-                  style={{ height: `${Math.max(4, item.count * 20)}px` }}
-                />
-                <span className="text-xs text-gray-500 mt-1 rotate-45 origin-left">
-                  {item.week}
-                </span>
-                <span className="text-xs font-bold mt-1">{item.count}</span>
-              </div>
-            ))}
+          <div className="flex items-end gap-2 min-w-[280px]">
+            {stats?.weeklyIdeas.map((item, index) => {
+              const barHeight = Math.max(8, (item.count / maxCount) * 100);
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center">
+                  <div 
+                    className="bg-purple-500 rounded-t w-full max-w-[40px] mx-auto transition-all hover:bg-purple-600"
+                    style={{ height: `${barHeight}px` }}
+                  />
+                  <span className="text-xs text-gray-500 mt-2 text-center">
+                    {item.week}
+                  </span>
+                  <span className="text-xs font-bold text-purple-600 mt-1">
+                    {item.count}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
         
@@ -344,25 +335,29 @@ export default function Dashboard() {
               Son Eklenen Fikirler
             </h2>
             <div className="space-y-3">
-              {stats?.recentIdeas.map(idea => (
-                <Link key={idea.id} href={`/idea/${idea.id}`} className="block hover:bg-gray-50 p-2 rounded transition">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium">{idea.title}</p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(idea.created_at).toLocaleDateString("tr-TR")}
-                      </p>
+              {stats?.recentIdeas.length ? (
+                stats.recentIdeas.map(idea => (
+                  <Link key={idea.id} href={`/idea/${idea.id}`} className="block hover:bg-gray-50 p-2 rounded transition">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium">{idea.title}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(idea.created_at).toLocaleDateString("tr-TR")}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        idea.status === "planlanan" ? "bg-yellow-100 text-yellow-700" :
+                        idea.status === "devam_eden" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                      }`}>
+                        {idea.status === "planlanan" ? "Planlandı" :
+                         idea.status === "devam_eden" ? "Devam Ediyor" : "Yayınlandı"}
+                      </span>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      idea.status === "planlanan" ? "bg-yellow-100 text-yellow-700" :
-                      idea.status === "devam_eden" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
-                    }`}>
-                      {idea.status === "planlanan" ? "Planlandı" :
-                       idea.status === "devam_eden" ? "Devam Ediyor" : "Yayınlandı"}
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))
+              ) : (
+                <p className="text-gray-400 text-center py-4">Henüz fikir eklenmemiş</p>
+              )}
             </div>
           </div>
         </div>
