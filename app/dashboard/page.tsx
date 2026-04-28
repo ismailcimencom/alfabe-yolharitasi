@@ -294,15 +294,16 @@ export default function Dashboard() {
               const barHeight = Math.max(8, (item.count / maxCount) * 100);
               return (
                 <div key={index} className="flex-1 flex flex-col items-center">
+                  {/* 🟢 SAYI ÜSTTE */}
+                  <span className="text-xs font-bold text-purple-600 mb-1">
+                    {item.count}
+                  </span>
                   <div 
                     className="bg-purple-500 rounded-t w-full max-w-[40px] mx-auto transition-all hover:bg-purple-600"
                     style={{ height: `${barHeight}px` }}
                   />
                   <span className="text-xs text-gray-500 mt-2 text-center">
                     {item.week}
-                  </span>
-                  <span className="text-xs font-bold text-purple-600 mt-1">
-                    {item.count}
                   </span>
                 </div>
               );

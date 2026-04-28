@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ChevronRight, CheckCircle, PlayCircle, ListChecks, UserPlus, LogOut, Users, UserCheck, User, BarChart3, Bell } from "lucide-react";
+import { ChevronRight, CheckCircle, PlayCircle, ListChecks, UserPlus, LogOut, Users, UserCheck, User, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 interface Idea {
@@ -14,6 +14,7 @@ interface Idea {
   email: string;
   created_at: string;
   assigned_to_email?: string | null;
+  category_id?: string | null;
 }
 
 interface TeamMember {
@@ -26,7 +27,14 @@ interface TeamMember {
   created_at: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export default function AdminPanel() {
+  // Tüm state'ler
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [activeMembers, setActiveMembers] = useState<TeamMember[]>([]);
@@ -38,77 +46,10 @@ export default function AdminPanel() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
-  // Bildirim state'leri
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Bildirimleri çek
-  async function fetchNotifications() {
-    if (!user?.id) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(30);
-    
-    if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter((n: any) => !n.is_read).length);
-    }
-  }
-
-  // Bildirimi okundu işaretle
-  async function markAsRead(id: string) {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    fetchNotifications();
-  }
-
-  // Tümünü okundu işaretle
-  async function markAllAsRead() {
-    await supabase.from("notifications").update({ is_read: true }).eq("user_id", user?.id);
-    fetchNotifications();
-  }
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchIdeas();
-        fetchTeamMembers();
-        fetchNotifications();
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchIdeas();
-        fetchTeamMembers();
-        fetchNotifications();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (user) {
-        const { data } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single();
-        setIsAdmin(data?.role === "admin");
-      }
-    };
-    checkAdmin();
-  }, [user]);
-
+  // Fetch fonksiyonları
   async function fetchIdeas() {
     const { data } = await supabase.from("ideas").select("*").order("created_at", { ascending: false });
     if (data) setIdeas(data);
@@ -121,6 +62,11 @@ export default function AdminPanel() {
       const active = data.filter(m => m.is_active === true);
       setActiveMembers(active);
     }
+  }
+
+  async function fetchCategories() {
+    const { data } = await supabase.from("categories").select("*");
+    if (data) setCategories(data);
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -136,7 +82,6 @@ export default function AdminPanel() {
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    
     const { error } = await supabase.from("team_members").insert({
       email: inviteEmail,
       full_name: inviteName,
@@ -144,7 +89,6 @@ export default function AdminPanel() {
       is_active: false,
       invited_by: user?.id
     });
-
     if (error) {
       alert("Davet hatası: " + error.message);
     } else {
@@ -167,7 +111,6 @@ export default function AdminPanel() {
       .from("ideas")
       .update({ assigned_to_email: memberEmail })
       .eq("id", ideaId);
-    
     if (error) {
       alert("Atama hatası: " + error.message);
     } else {
@@ -180,7 +123,6 @@ export default function AdminPanel() {
       .from("ideas")
       .update({ is_published: true })
       .eq("id", ideaId);
-    
     if (error) {
       alert("Yayınlama hatası: " + error.message);
     } else {
@@ -194,7 +136,6 @@ export default function AdminPanel() {
       .from("ideas")
       .update({ status: "planlanan", is_published: false })
       .eq("id", ideaId);
-    
     if (error) {
       alert("Hata: " + error.message);
     } else {
@@ -203,6 +144,45 @@ export default function AdminPanel() {
     }
   }
 
+  // useEffect'ler
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchIdeas();
+        fetchTeamMembers();
+        fetchCategories();
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchIdeas();
+        fetchTeamMembers();
+        fetchCategories();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        setIsAdmin(data?.role === "admin");
+      }
+    };
+    checkAdmin();
+  }, [user]);
+
+  // Erken return'ler
   if (loading) return <div className="text-center py-20">Yükleniyor...</div>;
 
   if (!user) {
@@ -220,68 +200,26 @@ export default function AdminPanel() {
     );
   }
 
-  const planlanan = ideas.filter(i => i.status === "planlanan");
-  const devamEden = ideas.filter(i => i.status === "devam_eden");
-  const yayinlanan = ideas.filter(i => i.status === "yayinlanan");
+  // Filtreler
+  const filteredIdeas = ideas.filter(idea => {
+    if (categoryFilter === "all") return true;
+    return idea.category_id === categoryFilter;
+  });
+
+  const planlanan = filteredIdeas.filter(i => i.status === "planlanan");
+  const devamEden = filteredIdeas.filter(i => i.status === "devam_eden");
+  const yayinlanan = filteredIdeas.filter(i => i.status === "yayinlanan");
   const pendingMembers = teamMembers.filter(m => m.status === "pending");
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8 relative">
+        <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Paneli</h1>
             <p className="text-gray-600">Hoş geldin, {user.email}</p>
           </div>
-          <div className="flex gap-2 items-center">
-            {/* 🔔 BİLDİRİM BUTONU */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 flex items-center gap-2"
-              >
-                <Bell className="w-4 h-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              
-              {/* BİLDİRİM PANELİ */}
-              {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto border">
-                  <div className="p-3 border-b font-semibold flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800">
-                    <span>Bildirimler</span>
-                    {notifications.length > 0 && (
-                      <button onClick={markAllAsRead} className="text-xs text-purple-600 hover:underline">
-                        Tümünü okundu işaretle
-                      </button>
-                    )}
-                  </div>
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">Henüz bildirim yok</div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`p-3 border-b hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition ${
-                          !n.is_read ? "bg-purple-50 dark:bg-purple-900/20" : ""
-                        }`}
-                        onClick={() => markAsRead(n.id)}
-                      >
-                        <div className="font-medium text-sm">{n.title}</div>
-                        <div className="text-xs text-gray-500 mt-1">{n.message}</div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {new Date(n.created_at).toLocaleString("tr-TR")}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
+          <div className="flex gap-2">
             <Link href="/dashboard">
               <button className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
@@ -302,6 +240,36 @@ export default function AdminPanel() {
             </button>
           </div>
         </div>
+
+        {/* Kategori Filtresi */}
+        {categories.length > 0 && (
+          <div className="flex gap-2 mb-6 flex-wrap">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`px-3 py-1 rounded-full text-sm transition ${
+                categoryFilter === "all"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Tüm Kategoriler
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setCategoryFilter(cat.id)}
+                className={`px-3 py-1 rounded-full text-sm transition ${
+                  categoryFilter === cat.id
+                    ? "text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+                style={categoryFilter === cat.id ? { backgroundColor: cat.color } : {}}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {pendingMembers.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
@@ -369,6 +337,7 @@ export default function AdminPanel() {
             developers={activeMembers}
             isAdmin={isAdmin}
             showDelete={true} 
+            categories={categories} 
           />
         </div>
 
@@ -387,6 +356,7 @@ export default function AdminPanel() {
             developers={activeMembers}
             isAdmin={isAdmin}
             showDelete={true} 
+            categories={categories} 
           />
         </div>
 
@@ -405,6 +375,7 @@ export default function AdminPanel() {
             developers={activeMembers}
             isAdmin={isAdmin}
             showDelete={true} 
+            categories={categories} 
           />
         </div>
       </div>
@@ -428,11 +399,12 @@ export default function AdminPanel() {
   );
 }
 
-// IdeasTable Komponenti (hatasız)
-function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nextStatus, nextStatusText, nextStatusColor, developers = [], onUpdateIdea, isAdmin }: any) {
+// IdeasTable Komponenti - Kategori düzenleme eklendi
+function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nextStatus, nextStatusText, nextStatusColor, developers = [], onUpdateIdea, isAdmin, showDelete = false, categories = [] }: any) {
   const [editingIdea, setEditingIdea] = useState<any>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
 
   if (ideas.length === 0) return <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">Henüz fikir yok</div>;
   
@@ -449,15 +421,23 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
     return developers.find((d: any) => d.email === assignedEmail);
   };
 
- const startEdit = (idea: any) => {
+  const startEdit = (idea: any) => {
     setEditingIdea(idea);
     setEditTitle(idea.title);
     setEditDescription(idea.description);
+    setEditCategoryId(idea.category_id || "");
   };
 
   const saveEdit = async () => {
     if (!editingIdea) return;
-    const { error } = await supabase.from("ideas").update({ title: editTitle, description: editDescription }).eq("id", editingIdea.id);
+    const { error } = await supabase
+      .from("ideas")
+      .update({ 
+        title: editTitle, 
+        description: editDescription,
+        category_id: editCategoryId || null
+      })
+      .eq("id", editingIdea.id);
     if (error) {
       alert("Güncelleme hatası: " + error.message);
     } else {
@@ -488,8 +468,32 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
                 <td className="px-3 py-2">
                   {isEditing ? (
                     <div className="space-y-1">
-                      <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full p-1 text-xs border rounded" />
-                      <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-1 text-xs border rounded" rows={2} />
+                      <input 
+                        type="text" 
+                        value={editTitle} 
+                        onChange={(e) => setEditTitle(e.target.value)} 
+                        className="w-full p-1 text-xs border rounded" 
+                      />
+                      <textarea 
+                        value={editDescription} 
+                        onChange={(e) => setEditDescription(e.target.value)} 
+                        className="w-full p-1 text-xs border rounded" 
+                        rows={2} 
+                      />
+                      {categories.length > 0 && (
+                        <select
+                          value={editCategoryId}
+                          onChange={(e) => setEditCategoryId(e.target.value)}
+                          className="w-full p-1 text-xs border rounded"
+                        >
+                          <option value="">Kategori seç</option>
+                          {categories.map((cat: any) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <div className="flex gap-1">
                         <button onClick={saveEdit} className="bg-green-600 text-white px-2 py-0.5 rounded text-xs">Kaydet</button>
                         <button onClick={() => setEditingIdea(null)} className="bg-gray-400 text-white px-2 py-0.5 rounded text-xs">İptal</button>
@@ -509,9 +513,16 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
                       {assignedDev ? (
-                        <img src={assignedDev.avatar_url || `https://ui-avatars.com/api/?background=6366f1&color=fff&bold=true&size=60&name=${encodeURIComponent(assignedDev.full_name || assignedDev.email)}`} alt="Avatar" className="w-[60px] h-[60px] rounded-full object-cover border-2 border-purple-200" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?background=6366f1&color=fff&bold=true&size=60&name=${encodeURIComponent(assignedDev.full_name || assignedDev.email)}`; }} />
+                        <img 
+                          src={assignedDev.avatar_url || `https://ui-avatars.com/api/?background=6366f1&color=fff&bold=true&size=60&name=${encodeURIComponent(assignedDev.full_name || assignedDev.email)}`} 
+                          alt="Avatar" 
+                          className="w-[60px] h-[60px] rounded-full object-cover border-2 border-purple-200" 
+                          onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?background=6366f1&color=fff&bold=true&size=60&name=${encodeURIComponent(assignedDev.full_name || assignedDev.email)}`; }} 
+                        />
                       ) : (
-                        <div className="w-[60px] h-[60px] rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200"><span className="text-gray-400 text-xs">?</span></div>
+                        <div className="w-[60px] h-[60px] rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                          <span className="text-gray-400 text-xs">?</span>
+                        </div>
                       )}
                       {assignedDev ? (
                         <span className="text-sm font-medium">{assignedDev.full_name || assignedDev.email?.split('@')[0]}</span>
@@ -520,15 +531,23 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
                       )}
                     </div>
                     {isAdmin && (
-                      <select value={idea.assigned_to_email || ""} onChange={(e) => onAssign(idea.id, e.target.value || null)} className="text-xs border rounded px-2 py-1 bg-white w-full">
+                      <select 
+                        value={idea.assigned_to_email || ""} 
+                        onChange={(e) => onAssign(idea.id, e.target.value || null)} 
+                        className="text-xs border rounded px-2 py-1 bg-white w-full"
+                      >
                         <option value="">Değiştir / Ata</option>
-                        {developers.map((dev: any) => (<option key={dev.id} value={dev.email}>{dev.full_name || dev.email?.split('@')[0]}</option>))}
+                        {developers.map((dev: any) => (
+                          <option key={dev.id} value={dev.email}>
+                            {dev.full_name || dev.email?.split('@')[0]}
+                          </option>
+                        ))}
                       </select>
                     )}
                   </div>
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-wrap">
                     {nextStatus === "devam_eden" && (
                       <>
                         <button onClick={() => onPublish(idea.id)} className="bg-green-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">✓ Onayla</button>
@@ -546,6 +565,25 @@ function IdeasTable({ ideas, onStatusChange, onAssign, onPublish, onRestart, nex
                         <button onClick={() => onStatusChange(idea.id, "devam_eden")} className="bg-orange-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">↺ Geri Al</button>
                         <button onClick={() => onRestart(idea.id)} className="bg-purple-500 text-white px-2 py-0.5 rounded text-xs hover:opacity-80">🔄 Baştan Başla</button>
                       </>
+                    )}
+                    {isAdmin && showDelete && (
+                      <button
+                        onClick={async () => {
+                          if (confirm("Bu fikri silmek istediğinize emin misiniz?")) {
+                            const { error } = await supabase.from("ideas").delete().eq("id", idea.id);
+                            if (error) {
+                              alert("Silme hatası: " + error.message);
+                            } else {
+                              alert("Fikir silindi!");
+                              if (onUpdateIdea) onUpdateIdea();
+                              else window.location.reload();
+                            }
+                          }
+                        }}
+                        className="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded text-xs"
+                      >
+                        🗑️ Sil
+                      </button>
                     )}
                   </div>
                 </td>

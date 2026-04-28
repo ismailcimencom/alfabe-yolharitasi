@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Search, Plus, ThumbsUp, ThumbsDown, Rss } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { Instagram, Youtube, Twitter, Facebook, Mail, Globe } from "lucide-react";
 
 interface Idea {
   id: string;
@@ -13,6 +15,8 @@ interface Idea {
   net_votes: number;
   email: string;
   created_at: string;
+  category_id?: string;
+  categories?: { name: string; color: string };
 }
 
 interface UserVote {
@@ -20,19 +24,29 @@ interface UserVote {
   vote_type: number;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+}
+
 export default function Home() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [popularIdeas, setPopularIdeas] = useState<Idea[]>([]);
   const [filter, setFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [userVotes, setUserVotes] = useState<Map<string, number>>(new Map());
   const [ip, setIp] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     fetch("https://api.ipify.org?format=json")
       .then(res => res.json())
       .then(data => setIp(data.ip));
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -45,10 +59,15 @@ export default function Home() {
     }
   }, [ip, ideas]);
 
+  async function fetchCategories() {
+    const { data } = await supabase.from("categories").select("*");
+    if (data) setCategories(data);
+  }
+
   async function fetchIdeas() {
     const { data } = await supabase
       .from("ideas")
-      .select("*")
+      .select("*, categories(name, color)")
       .eq("is_published", true)
       .order("net_votes", { ascending: false });
     
@@ -121,9 +140,10 @@ export default function Home() {
 
   const filteredIdeas = ideas.filter(idea => {
     const matchesStatus = filter === "all" || idea.status === filter;
+    const matchesCategory = categoryFilter === "all" || idea.category_id === categoryFilter;
     const matchesSearch = idea.title.toLowerCase().includes(search.toLowerCase()) ||
                           idea.description.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesCategory && matchesSearch;
   });
 
   const planlanan = filteredIdeas.filter(i => i.status === "planlanan");
@@ -193,7 +213,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="flex gap-4 mb-8 flex-wrap">
+        <div className="flex flex-col md:flex-row gap-4 mb-8 flex-wrap">
           <div className="flex-1 relative min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-2/ text-gray-400 w-5 h-5" />
             <input
@@ -211,6 +231,36 @@ export default function Home() {
             <button onClick={() => setFilter("yayinlanan")} className={`px-4 py-2 rounded-lg transition ${filter === "yayinlanan" ? "bg-purple-600 text-white" : "bg-white text-gray-600 border"}`}>Yayınlanan</button>
           </div>
         </div>
+
+        {/* Kategori Filtresi */}
+        {categories.length > 0 && (
+          <div className="flex gap-2 mb-6 flex-wrap">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`px-3 py-1 rounded-full text-sm transition ${
+                categoryFilter === "all"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Tüm Kategoriler
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setCategoryFilter(cat.id)}
+                className={`px-3 py-1 rounded-full text-sm transition ${
+                  categoryFilter === cat.id
+                    ? "text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+                style={categoryFilter === cat.id ? { backgroundColor: cat.color } : {}}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
@@ -234,13 +284,32 @@ export default function Home() {
         </div>
       </div>
 
-      {showModal && <IdeaModal onClose={() => setShowModal(false)} onSuccess={fetchIdeas} />}
+      {showModal && <IdeaModal onClose={() => setShowModal(false)} onSuccess={fetchIdeas} categories={categories} />}
 
+      {/* FOOTER - 4 SÜTUNLU ve LOGO EKLİ */}
       <footer className="bg-gray-900 text-gray-300 mt-20">
         <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            
+            {/* 1. SÜTUN: LOGO */}
+            <div className="flex flex-col items-start items-center text-center">
+              <div className="bg-white p-3 rounded-xl shadow-md ">
+                <Image 
+                  src="/alfabelogo.png" 
+                  alt="Alfabe Mail Logo" 
+                  width={120} 
+                  height={120}
+                  className="object-contain"
+                />
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed mt-4">
+                Çocuklar için düşünüldü :)
+              </p>
+            </div>
+
+            {/* 2. SÜTUN: PROJE HAKKINDA */}
             <div>
-              <h2 className="text-2xl font-bold text-white mb-3">Alfabe</h2>
+              <h2 className="text-2xl font-bold text-white mb-3">Alfabe Mail Projesi</h2>
               <p className="text-sm text-gray-400 leading-relaxed">
                 Alfabe mail sistemi olarak geliştirme yol haritamız. Bizlere destek olun. Planlanan, devam eden ve yayınlanan özellikleri takip edin.
               </p>
@@ -251,25 +320,51 @@ export default function Home() {
                 </button>
               </Link>
             </div>
+
+            {/* 3. SÜTUN: KEŞFET */}
             <div>
               <h3 className="text-white font-semibold mb-3">Keşfet</h3>
               <ul className="space-y-2 text-sm">
                 <li><Link href="/" className="hover:text-purple-400 transition">Ana Sayfa</Link></li>
-                <li><Link href="/admin" className="hover:text-purple-400 transition">Admin Paneli</Link></li>
+                <li><Link href="/admin" className="hover:text-purple-400 transition">Fikir Paneli</Link></li>
+                <li><Link href="https://mail.alfabe.co/" className="hover:text-purple-400 transition">Mail Paneli</Link></li>
+                <li><Link href="https://alfabe.co/" className="hover:text-purple-400 transition">Proje Sayfası</Link></li>
               </ul>
             </div>
+
+            {/* 4. SÜTUN: İLETİŞİM */}
             <div>
               <h3 className="text-white font-semibold mb-3">İletişim</h3>
               <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2"><span>📧</span> <a href="mailto:info@alfabe.co" className="hover:text-purple-400 transition">info@alfabe.co</a></li>
-                <li className="flex items-center gap-2"><span>🐦</span> <a href="#" className="hover:text-purple-400 transition">Twitter</a></li>
-                <li className="flex items-center gap-2"><span>💼</span> <a href="#" className="hover:text-purple-400 transition">LinkedIn</a></li>
-                <li className="flex items-center gap-2"><span>📘</span> <a href="#" className="hover:text-purple-400 transition">Instagram</a></li>
+                <li className="flex items-center gap-2"><span>📷</span> <a href="https://www.instagram.com/kapsulserix" className="hover:text-purple-400 transition">Instagram</a></li>
+                <li className="flex items-center gap-2"><span>💼</span> <a href="https://nsosyal.com/kapsulserix" className="hover:text-purple-400 transition">N Sosyal</a></li>
+                <li className="flex items-center gap-2"><span>📺</span> <a href="https://www.youtube.com/@kapsulserix42" className="hover:text-purple-400 transition">YouTube</a></li>
+                <li className="flex items-center gap-2"><span>🎵</span> <a href="https://www.tiktok.com/@kapsulserix" className="hover:text-purple-400 transition">TikTok</a></li>
+                <li className="flex items-center gap-2"><span>📘</span> <a href="https://www.facebook.com/people/Kaps%C3%BCl-Serix/61587109013839/" className="hover:text-purple-400 transition">Facebook</a></li>
+                <li className="flex items-center gap-2"><span>🌐</span> <a href="https://x.com/kapsulserix" className="hover:text-purple-400 transition">X(Twitter)</a></li>
+                <li className="flex items-center gap-2"><span>🐦</span> <a href="mailto:info@alfabe.co" className="hover:text-purple-400 transition">info@alfabe.co</a></li>
               </ul>
             </div>
           </div>
+
+          {/* Copyright ve BuyMeACoffee */}
           <div className="border-t border-gray-800 mt-8 pt-6 text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} alfabe.co - Tüm hakları saklıdır.
+            <p>© {new Date().getFullYear()} alfabe.co - Tüm hakları saklıdır. Bu proje Teknofest kapsamında Kapsül SeriX tarafından hazırlanmıştır. Projemiz için sunucu ve diğer masrafları karşılamak adına desteğe ihtiyacımız vardır. Mail uygulamamızın ücretsiz ve reklamsız olması için bizlere destek olabilirsiniz.</p>
+            
+            {/* Buy Me a Coffee Butonu */}
+            <div className="flex justify-center mt-6">
+              <a 
+                href="https://www.buymeacoffee.com/proacademy" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <img 
+                  src="https://img.buymeacoffee.com/button-api/?text=Bir kahve ısmarla!&emoji=☕&slug=proacademy&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" 
+                  alt="Bir kahve ısmarla"
+                  className="h-12 w-auto"
+                />
+              </a>
+            </div>
           </div>
         </div>
       </footer>
@@ -277,7 +372,7 @@ export default function Home() {
   );
 }
 
-// Idea Card Komponenti (tıklanabilir)
+// Idea Card Komponenti (tıklanabilir + kategori etiketi)
 function IdeaCard({ idea, onVote, hasVoted }: { idea: Idea; onVote: (id: string, type: number) => void; hasVoted: boolean }) {
   const statusColors = {
     planlanan: "bg-yellow-100 text-yellow-800",
@@ -292,10 +387,22 @@ function IdeaCard({ idea, onVote, hasVoted }: { idea: Idea; onVote: (id: string,
   return (
     <Link href={`/idea/${idea.id}`}>
       <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer">
-        <h3 className="font-semibold text-gray-900 mb-1">{idea.title}</h3>
+        <div className="flex justify-between items-start">
+          <h3 className="font-semibold text-gray-900 mb-1 flex-1">{idea.title}</h3>
+          {idea.categories && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full text-white ml-2"
+              style={{ backgroundColor: idea.categories.color }}
+            >
+              {idea.categories.name}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">{idea.description}</p>
         <div className="flex items-center justify-between">
-          <span className={`text-xs px-2 py-1 rounded-full ${statusColors[idea.status]}`}>{statusText[idea.status]}</span>
+          <span className={`text-xs px-2 py-1 rounded-full ${statusColors[idea.status]}`}>
+            {statusText[idea.status]}
+          </span>
           <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
             <button onClick={(e) => { e.stopPropagation(); onVote(idea.id, 1); }} disabled={hasVoted} className={`flex items-center gap-1 px-2 py-1 rounded transition ${hasVoted ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-purple-50 text-purple-600 hover:bg-purple-100"}`}>
               <span className="text-sm">👍</span>
@@ -308,11 +415,12 @@ function IdeaCard({ idea, onVote, hasVoted }: { idea: Idea; onVote: (id: string,
   );
 }
 
-// Idea Modal - DÜZELTİLDİ (Token popup kalktı, e-posta entegre edildi)
-function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+// Idea Modal - Kategorili
+function IdeaModal({ onClose, onSuccess, categories }: { onClose: () => void; onSuccess: () => void; categories: Category[] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [email, setEmail] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -321,12 +429,12 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
     
     const token = Math.random().toString(36).substring(7);
     
-    // Pending ideas'a kaydet
     const { error: insertError } = await supabase.from("pending_ideas").insert({
       title,
       description,
       email,
-      token
+      token,
+      category_id: categoryId || null
     });
 
     if (insertError) {
@@ -335,7 +443,6 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
       return;
     }
 
-    // E-posta gönder
     try {
       const response = await fetch("/api/send-email", {
         method: "POST",
@@ -343,13 +450,12 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
         body: JSON.stringify({ to: email, token, title, description })
       });
 
-      const result = await response.json();
-
       if (response.ok) {
         alert("✅ Doğrulama e-postası gönderildi! Lütfen e-postanızı kontrol edin.");
         onSuccess();
         onClose();
       } else {
+        const result = await response.json();
         alert("E-posta gönderilemedi: " + (result.error || "Bilinmeyen hata"));
       }
     } catch (error) {
@@ -365,12 +471,49 @@ function IdeaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
         <h2 className="text-xl font-bold mb-4">Yeni Fikir Öner</h2>
         <form onSubmit={handleSubmit}>
-          <input type="text" placeholder="Fikir başlığı" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 border rounded mb-3" required />
-          <textarea placeholder="Açıklama" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-2 border rounded mb-3" rows={3} required />
-          <input type="email" placeholder="E-posta" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border rounded mb-4" required />
+          <input
+            type="text"
+            placeholder="Fikir başlığı"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full p-2 border rounded mb-3"
+            required
+          />
+          <textarea
+            placeholder="Açıklama"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-2 border rounded mb-3"
+            rows={3}
+            required
+          />
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full p-2 border rounded mb-3"
+          >
+            <option value="">Kategori seçin (isteğe bağlı)</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="email"
+            placeholder="E-posta"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 border rounded mb-4"
+            required
+          />
           <div className="flex gap-2">
-            <button type="submit" disabled={loading} className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700">{loading ? "Gönderiliyor..." : "Gönder"}</button>
-            <button type="button" onClick={onClose} className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">İptal</button>
+            <button type="submit" disabled={loading} className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700">
+              {loading ? "Gönderiliyor..." : "Gönder"}
+            </button>
+            <button type="button" onClick={onClose} className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">
+              İptal
+            </button>
           </div>
         </form>
       </div>
