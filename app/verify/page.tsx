@@ -24,18 +24,18 @@ function VerifyContent() {
 
   async function verify() {
     try {
-      const response = await fetch(`/api/verify?token=${token}`);
-      const data = await response.json();
+      const res = await fetch(`/api/verify?token=${token}`);
+      const data = await res.json();
 
-      if (response.ok) {
+      if (res.ok) {
         setStatus("✅ Fikir başarıyla eklendi! Yönlendiriliyorsunuz...");
         setTimeout(() => router.push("/"), 1500);
       } else {
         setStatus("❌ " + (data.error || "Bir hata oluştu"));
         setTimeout(() => router.push("/"), 3000);
       }
-    } catch (err) {
-      setStatus("❌ Bağlantı hatası");
+    } catch {
+      setStatus("❌ Bağlantı hatası, lütfen tekrar deneyin");
       setTimeout(() => router.push("/"), 3000);
     }
   }
