@@ -172,20 +172,55 @@ export default function IdeaDetail() {
     }
 
     try {
-      const { error } = await supabase
-        .from("comments")
-        .insert({
-          idea_id: id,
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      const insertAttempts: Array<Record<string, string>> = [
+        {
+          idea_id: String(id),
           content: newComment,
           user_email: userEmail
-        });
+        }
+      ];
 
-      if (error) {
-        const message = getReadableErrorMessage(error);
+      if (user?.id) {
+        insertAttempts.push({
+          idea_id: String(id),
+          content: newComment,
+          user_id: user.id
+        });
+      }
+
+      let lastError: unknown = null;
+      let inserted = false;
+
+      for (const payload of insertAttempts) {
+        const { error } = await supabase.from("comments").insert(payload);
+        if (!error) {
+          inserted = true;
+          break;
+        }
+        lastError = error;
+      }
+
+      if (!inserted) {
+        const message = getReadableErrorMessage(lastError);
+        const isUuidCastError =
+          typeof message === "string" &&
+          message.toLowerCase().includes("invalid input syntax for type uuid");
+
         console.error("Yorum hatası (detaylı):", {
           message,
-          rawError: error
+          rawError: lastError,
+          attemptedPayloadCount: insertAttempts.length
         });
+
+        if (isUuidCastError && !user?.id) {
+          alert("Yorum göndermek için giriş yapmanız gerekiyor.");
+          return;
+        }
+
         alert("Yorum gönderilemedi: " + message);
         return;
       }
