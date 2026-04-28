@@ -32,6 +32,24 @@ interface Developer {
   avatar_url?: string;
 }
 
+function getReadableErrorMessage(error: unknown): string {
+  if (!error) return "Bilinmeyen bir hata oluştu.";
+  if (typeof error === "string") return error;
+
+  if (typeof error === "object") {
+    const errorWithMessage = error as { message?: string; details?: string; hint?: string; code?: string };
+    if (errorWithMessage.message) return errorWithMessage.message;
+    if (errorWithMessage.details) return errorWithMessage.details;
+    if (errorWithMessage.hint) return errorWithMessage.hint;
+    if (errorWithMessage.code) return `Hata kodu: ${errorWithMessage.code}`;
+
+    const serialized = JSON.stringify(error);
+    if (serialized && serialized !== "{}") return serialized;
+  }
+
+  return "Bilinmeyen bir hata oluştu.";
+}
+
 export default function IdeaDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -152,20 +170,35 @@ export default function IdeaDetail() {
       alert("Lütfen e-posta adresinizi girin.");
       return;
     }
-    
-    const { error } = await supabase
-      .from("comments")
-      .insert({ 
-        idea_id: id, 
-        content: newComment, 
-        user_email: userEmail 
-      });
-    
-    if (!error) {
+
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .insert({
+          idea_id: id,
+          content: newComment,
+          user_email: userEmail
+        });
+
+      if (error) {
+        const message = getReadableErrorMessage(error);
+        console.error("Yorum hatası (detaylı):", {
+          message,
+          rawError: error
+        });
+        alert("Yorum gönderilemedi: " + message);
+        return;
+      }
+
       setNewComment("");
       fetchComments();
-    } else {
-      alert("Yorum gönderilemedi: " + error.message);
+    } catch (error) {
+      const message = getReadableErrorMessage(error);
+      console.error("Yorum hatası (beklenmeyen):", {
+        message,
+        rawError: error
+      });
+      alert("Yorum gönderilemedi: " + message);
     }
   }
 
