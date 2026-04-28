@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ChevronRight, CheckCircle, PlayCircle, ListChecks, UserPlus, LogOut, Users, UserCheck, User, BarChart3 } from "lucide-react";
+import { ChevronRight, CheckCircle, PlayCircle, ListChecks, UserPlus, LogOut, Users, UserCheck, User, BarChart3, MessageCircle } from "lucide-react";
 import Link from "next/link";
 
 interface Idea {
@@ -33,6 +33,14 @@ interface Category {
   color: string;
 }
 
+interface PendingComment {
+  id: string;
+  content: string;
+  user_email: string;
+  created_at: string;
+  ideas: { title: string };
+}
+
 export default function AdminPanel() {
   // Tüm state'ler
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -48,6 +56,9 @@ export default function AdminPanel() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  
+  // Yorum onaylama state'leri
+  const [pendingComments, setPendingComments] = useState<PendingComment[]>([]);
 
   // Fetch fonksiyonları
   async function fetchIdeas() {
@@ -67,6 +78,25 @@ export default function AdminPanel() {
   async function fetchCategories() {
     const { data } = await supabase.from("categories").select("*");
     if (data) setCategories(data);
+  }
+
+  async function fetchPendingComments() {
+    const { data } = await supabase
+      .from("comments")
+      .select("*, ideas(title)")
+      .eq("is_approved", false)
+      .order("created_at", { ascending: false });
+    if (data) setPendingComments(data);
+  }
+
+  async function approveComment(commentId: string) {
+    await supabase.from("comments").update({ is_approved: true }).eq("id", commentId);
+    fetchPendingComments();
+  }
+
+  async function rejectComment(commentId: string) {
+    await supabase.from("comments").delete().eq("id", commentId);
+    fetchPendingComments();
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -152,6 +182,7 @@ export default function AdminPanel() {
         fetchIdeas();
         fetchTeamMembers();
         fetchCategories();
+        fetchPendingComments();
       }
       setLoading(false);
     });
@@ -162,6 +193,7 @@ export default function AdminPanel() {
         fetchIdeas();
         fetchTeamMembers();
         fetchCategories();
+        fetchPendingComments();
       }
     });
 
@@ -240,6 +272,29 @@ export default function AdminPanel() {
             </button>
           </div>
         </div>
+
+        {/* 🔔 Onay Bekleyen Yorumlar */}
+        {pendingComments.length > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-8">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
+              <MessageCircle className="w-5 h-5 text-orange-700" />
+              Onay Bekleyen Yorumlar ({pendingComments.length})
+            </h2>
+            <div className="space-y-2">
+              {pendingComments.map(comment => (
+                <div key={comment.id} className="bg-white p-3 rounded border">
+                  <div className="font-medium">{comment.user_email}</div>
+                  <div className="text-sm text-gray-600 mt-1">{comment.content}</div>
+                  <div className="text-xs text-gray-400 mt-1">Fikir: {comment.ideas?.title}</div>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => approveComment(comment.id)} className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">✓ Onayla</button>
+                    <button onClick={() => rejectComment(comment.id)} className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700">✗ Reddet</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Kategori Filtresi */}
         {categories.length > 0 && (
