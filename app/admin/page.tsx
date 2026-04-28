@@ -368,6 +368,7 @@ export default function AdminPanel() {
             nextStatusColor="blue"
             developers={activeMembers}
             isAdmin={isAdmin}
+            showDelete={true} 
           />
         </div>
 
@@ -385,6 +386,7 @@ export default function AdminPanel() {
             nextStatusColor="green"
             developers={activeMembers}
             isAdmin={isAdmin}
+            showDelete={true} 
           />
         </div>
 
@@ -402,6 +404,7 @@ export default function AdminPanel() {
             nextStatusColor="gray" 
             developers={activeMembers}
             isAdmin={isAdmin}
+            showDelete={true} 
           />
         </div>
       </div>
