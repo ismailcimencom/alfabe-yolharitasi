@@ -2,21 +2,28 @@
 import { Resend } from 'resend';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Resend istemcisini başlat (API Key'in .env.local'da veya Vercel'de olacak)
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 // Bu satır çok önemli: Node.js runtime'da çalışmasını sağlar
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-     // 🟢 BURAYA EKLE - try bloğundan ÖNCE de olabilir
-    console.log('=== EMAIL API CALLED ===');
-    console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
-
   try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'RESEND_API_KEY is missing on server' },
+        { status: 500 }
+      );
+    }
+
     // Frontend'den gelen verileri al
     const { to, token, title, description } = await request.json();
+    if (!to || !token) {
+      return NextResponse.json(
+        { error: 'Missing required fields: to, token' },
+        { status: 400 }
+      );
+    }
 
     // Doğrulama linkini oluştur
     const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://alfabe-yolharitasi.vercel.app';
@@ -40,6 +47,7 @@ export async function POST(request: NextRequest) {
     `;
 
     // Resend ile e-postayı gönder
+    const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
       from: 'Alfabe Yol Haritası <noreply@updates.alfabe.co>',
       to: [to],

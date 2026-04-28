@@ -311,14 +311,23 @@ export default function Home() {
             <div>
               <h2 className="text-2xl font-bold text-white mb-3">Alfabe Mail Projesi</h2>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Alfabe mail sistemi olarak geliştirme yol haritamız. Bizlere destek olun. Planlanan, devam eden ve yayınlanan özellikleri takip edin.
+                Alfabe mail sistemi olarak geliştirme yol haritamız. Planlanan, devam eden ve yayınlanan özellikleri takip edin. Bizlere destek olun.
               </p>
               <br/>
-              <Link href="/rss.xml">
-                <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center gap-2">
-                  <Rss className="w-5 h-5" /> RSS
-                </button>
-              </Link>
+             {/* Buy Me a Coffee Butonu */}
+            <div className="flex justify-center mt-6">
+              <a 
+                href="https://www.buymeacoffee.com/proacademy" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <img 
+                  src="https://img.buymeacoffee.com/button-api/?text=Bir kahve ısmarla!&emoji=☕&slug=proacademy&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" 
+                  alt="Bir kahve ısmarla"
+                  className="h-12 w-auto"
+                />
+              </a>
+            </div>
             </div>
 
             {/* 3. SÜTUN: KEŞFET */}
@@ -347,25 +356,22 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Copyright ve BuyMeACoffee */}
+
+
+          {/* Copyright*/}
           <div className="border-t border-gray-800 mt-8 pt-6 text-center text-sm text-gray-500">
             <p>© {new Date().getFullYear()} alfabe.co - Tüm hakları saklıdır. Bu proje Teknofest kapsamında Kapsül SeriX tarafından hazırlanmıştır. Projemiz için sunucu ve diğer masrafları karşılamak adına desteğe ihtiyacımız vardır. Mail uygulamamızın ücretsiz ve reklamsız olması için bizlere destek olabilirsiniz.</p>
             
-            {/* Buy Me a Coffee Butonu */}
-            <div className="flex justify-center mt-6">
-              <a 
-                href="https://www.buymeacoffee.com/proacademy" 
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
-                <img 
-                  src="https://img.buymeacoffee.com/button-api/?text=Bir kahve ısmarla!&emoji=☕&slug=proacademy&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" 
-                  alt="Bir kahve ısmarla"
-                  className="h-12 w-auto"
-                />
-              </a>
-            </div>
+            <br>
+            </br>
+            
           </div>
+          <center>           <Link href="/rss.xml">
+                <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center gap-2">
+                  <Rss className="w-5 h-5" /> RSS
+                </button>
+              </Link>
+          </center>
         </div>
       </footer>
     </div>
