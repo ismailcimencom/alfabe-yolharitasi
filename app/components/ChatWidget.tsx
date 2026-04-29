@@ -20,11 +20,16 @@ export default function ChatWidget() {
   const [newMessage, setNewMessage] = useState("");
   const [userName, setUserName] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [subscription, setSubscription] = useState<any>(null);
 
   useEffect(() => {
     checkUser();
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -43,49 +48,63 @@ export default function ChatWidget() {
   };
 
   async function checkUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsVisible(false);
+        setLoading(false);
+        return;
+      }
+      
+      const { data: member } = await supabase
+        .from("team_members")
+        .select("full_name, is_active")
+        .eq("email", user.email)
+        .single();
+      
+      if (member && member.is_active) {
+        setUser(user);
+        setUserName(member.full_name || user.email?.split('@')[0]);
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } catch (err) {
+      console.error("Auth hatası:", err);
       setIsVisible(false);
-      return;
-    }
-    
-    // Kullanıcının admin veya yazılımcı olup olmadığını kontrol et
-    const { data: member } = await supabase
-      .from("team_members")
-      .select("full_name, is_active")
-      .eq("email", user.email)
-      .single();
-    
-    if (member && member.is_active) {
-      setUser(user);
-      setUserName(member.full_name || user.email?.split('@')[0]);
-      setIsVisible(true);
-    } else {
-      setIsVisible(false);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function fetchMessages() {
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .order("created_at", { ascending: true })
-      .limit(50);
-    
-    if (data) {
-      setMessages(data);
-      // Sadece kapalıyken unread sayısını hesapla
-      if (!isOpen) {
-        const newUnread = data.filter(m => m.user_email !== user?.email).length;
-        setUnreadCount(newUnread);
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .limit(50);
+      
+      if (error) throw error;
+      if (data) {
+        setMessages(data);
+        if (!isOpen) {
+          const newUnread = data.filter(m => m.user_email !== user?.email).length;
+          setUnreadCount(newUnread);
+        }
       }
+    } catch (err) {
+      console.error("Mesajlar yüklenemedi:", err);
     }
   }
 
   function subscribeToMessages() {
-    const subscription = supabase
+    if (subscription) subscription.unsubscribe();
+    
+    const sub = supabase
       .channel("chat_messages")
-      .on("postgres_changes", 
+      .on(
+        "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages" },
         (payload) => {
           const newMsg = payload.new as Message;
@@ -95,36 +114,47 @@ export default function ChatWidget() {
           }
         }
       )
-      .subscribe();
-
-    return () => subscription.unsubscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Realtime bağlandı");
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("Realtime bağlantı hatası");
+        }
+      });
+    
+    setSubscription(sub);
   }
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim()) return;
     
-    const { error } = await supabase
-      .from("chat_messages")
-      .insert({
-        user_email: user.email,
-        user_name: userName,
-        content: newMessage.trim()
-      });
-    
-    if (!error) {
+    try {
+      const { error } = await supabase
+        .from("chat_messages")
+        .insert({
+          user_email: user.email,
+          user_name: userName,
+          content: newMessage.trim()
+        });
+      
+      if (error) throw error;
       setNewMessage("");
       if (!isOpen) setIsOpen(true);
+    } catch (err) {
+      console.error("Mesaj gönderme hatası:", err);
+      alert("Mesaj gönderilemedi");
     }
   }
 
   const toggleOpen = () => {
     setIsOpen(!isOpen);
-    if (isOpen) {
+    if (!isOpen) {
       setUnreadCount(0);
     }
   };
 
+  if (loading) return null;
   if (!isVisible) return null;
 
   return (
@@ -150,8 +180,8 @@ export default function ChatWidget() {
           {/* Header */}
           <div className="bg-purple-600 text-white p-3 flex justify-between items-center">
             <div>
-              <h3 className="font-semibold">💬 Yazılımcı Ekip Sohbeti</h3>
-              <p className="text-xs opacity-90">Tüm yazılımcılar buradan konuşabilirsiniz.</p>
+              <h3 className="font-semibold">💬 Ekip Sohbeti</h3>
+              <p className="text-xs opacity-90">Tüm yazılımcılar ve admin</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -173,24 +203,45 @@ export default function ChatWidget() {
           {!isMinimized && (
             <>
               <div className="h-80 overflow-y-auto p-3 bg-gray-50 flex flex-col">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`mb-2 flex ${msg.user_email === user.email ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-lg p-2 ${msg.user_email === user.email ? "bg-purple-600 text-white" : "bg-gray-200 text-gray-800"}`}>
-                      <div className="text-xs font-bold">
-                        {msg.user_name || msg.user_email?.split('@')[0]}
-                      </div>
-                      <p className="text-sm">{msg.content}</p>
-                      <div className={`text-xs mt-1 ${msg.user_email === user.email ? "text-purple-200" : "text-gray-500"}`}>
-                        {new Date(msg.created_at).toLocaleTimeString()}
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-400 py-10">
+                    Henüz mesaj yok. İlk mesajı sen gönder!
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`mb-2 flex ${msg.user_email === user?.email ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg p-2 ${
+                          msg.user_email === user?.email
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-200 text-gray-800"
+                        }`}
+                      >
+                        <div className="text-xs font-bold">
+                          {msg.user_name || msg.user_email?.split("@")[0]}
+                        </div>
+                        <p className="text-sm break-words">{msg.content}</p>
+                        <div
+                          className={`text-xs mt-1 ${
+                            msg.user_email === user?.email
+                              ? "text-purple-200"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          {new Date(msg.created_at).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
               {/* Mesaj gönderme formu */}
-              <form onSubmit={sendMessage} className="p-3 border-t flex gap-2">
+              <form onSubmit={sendMessage} className="p-3 border-t flex gap-2 bg-white">
                 <input
                   type="text"
                   value={newMessage}
@@ -208,7 +259,7 @@ export default function ChatWidget() {
             </>
           )}
 
-          {/* Küçültülmüş halde sadece başlık */}
+          {/* Küçültülmüş hal */}
           {isMinimized && (
             <div className="p-3 text-center text-sm text-gray-500 border-t">
               Sohbet küçültüldü. Açmak için ⬆️ tıklayın.
